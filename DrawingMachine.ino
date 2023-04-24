@@ -5,8 +5,8 @@
 const int stepsPerRevolution = 200;
 
 // Initialize the stepper library
-Stepper StepperA = Stepper(stepsPerRevolution, 8, 9, 10, 11);
-Stepper StepperB = Stepper(stepsPerRevolution, 4, 5,  6,  7);
+Stepper StepperA = Stepper(stepsPerRevolution, 15,13,12,14);
+Stepper StepperB = Stepper(stepsPerRevolution, 2,0,4,5);
 
 
 int position[4][2] = {
