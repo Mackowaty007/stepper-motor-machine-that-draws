@@ -1,34 +1,23 @@
 #include <Stepper.h>
 #include <math.h>
 
-// Define number of steps per revolution:
 const int stepsPerRevolution = 200;
+int posXdata = 500;
+int posYdata = 10;
+String mode = "NORMAL";
 
-// Initialize the stepper library
-Stepper StepperA = Stepper(stepsPerRevolution, 15,13,12,14);
-Stepper StepperB = Stepper(stepsPerRevolution, 2,0,4,5);
-
-
-int position[4][2] = {
-  {400,500},
-  {500,500},
-  {500,400},
-  {400,400}
-};
-
-float circle1Radious = 700;//mm
-float circle2Radious = 700;//mm
+Stepper StepperA = Stepper(stepsPerRevolution, 4,5,6,7);
+Stepper StepperB = Stepper(stepsPerRevolution, 8,9,10,11);
 
 float stringLenght = 630;//mm
-//maxWidth is how far away are the mottors from each other
 float maxWidth = 740;//mm
 float maxHeight = -480;//mm
 
 int currentPosRaw[2] = {0,0};
 //uppper left corner is [0,0]
-int currentPos[2] = {maxWidth/2,0};
+int currentPos[2] = {500,10};
 
-void move(int posX, int posY){
+void move(int posY, int posX){
   int distancePenToStepper[2] = {
     sqrt(pow(posX,2)+pow(posY,2)),
     sqrt(pow(maxWidth - posX,2)+pow(posY,2))
@@ -39,6 +28,14 @@ void move(int posX, int posY){
     currentPosRaw[0] - distancePenToStepper[0],
     currentPosRaw[1] - distancePenToStepper[1]
   };
+/*
+  //calculate if the position is out of reach
+  if (currentPosRaw[0] + howMuchToMove[0] > stringLenght){
+    howMuchToMove[0] = 0;
+  }
+  if (currentPosRaw[1] + howMuchToMove[1] > stringLenght){
+    howMuchToMove[1] = 0;
+  }*/
   
   int numOfSteps = 100;
 
@@ -79,19 +76,43 @@ void moveRaw(int posX, int posY){
   }
 }
 
+//run this if the stop button is pressed
+void stopA(){
+  //currentPosRaw[0] = 0;
+}
+void stopB(){
+  //currentPosRaw[1] = 0;
+}
+
 void setup() {
-  //serial setup
   Serial.begin(9600);
 
   // Set the motor speed (RPMs):
   StepperA.setSpeed(100);
   StepperB.setSpeed(100);
+
+  attachInterrupt(digitalPinToInterrupt(2), stopA, RISING);
+  attachInterrupt(digitalPinToInterrupt(3), stopB, RISING);
 }
 
 void loop() {
-  for(int i=0;i<4;i++){
-    move(position[i][0],position[i][1]);
-    //Serial.println(position[i][0]);
-    delay(2000);
+  if(Serial.available() > 0) {
+    //mode can be RAW or NORMAL
+    mode = (Serial.readStringUntil('\n'));
+    posXdata = (Serial.readStringUntil('\n')).toInt();
+    posYdata = (Serial.readStringUntil('\n')).toInt();
+    Serial.print(currentPosRaw[0]);
+    Serial.print(currentPosRaw[1]);
+  }
+  if (mode=="NORMAL"){
+    move(posXdata,posYdata);
+    //Serial.println("OK");
+  }
+  else if (mode=="RAW"){
+    moveRaw(posXdata,posYdata);
+    //Serial.println("OK");
+  }
+  else{
+    //Serial.println("ERROR");
   }
 }
