@@ -24,7 +24,8 @@ const float stringLength = 630;//mm
 //how wide the machine is (the distance between 2 stepper motors)
 const float maxWidth = 740;//mm
 //how low can the rope go
-const float maxHeight = 480;//mm
+//const float maxHeight = 480;//mm
+const float maxHeight = sqrt(pow(stringLength,2) - pow(maxWidth/2,2));
 
 //data for serial
 int posXdata = maxWidth/2;//mm
@@ -42,6 +43,11 @@ int mmToSteps(float mm){
   return mm * 6.45;
 }
 
+//if the button is detected as pressed do this
+void FuckGoBack(char stepperID){
+  if (stepperID == 'A') StepperA.step(100);
+  if (stepperID == 'B') StepperB.step(100);
+}
 //position of the pencil
 int currentPosRaw[2] = {mmToSteps(stringLength),mmToSteps(stringLength)};//steps
 //uppper left corner is [0,0]
@@ -116,6 +122,15 @@ void move(int X, int Y){
 
   //var progres is the number of steps until completion
   for(int progres=numOfSteps;progres>0;progres--){
+    //check if the stop button has been pressed
+    if(isStopAPressed == true){
+      FuckGoBack('A');
+      isStopAPressed = false;
+    }
+    if(isStopBPressed == true){
+      FuckGoBack('B');
+      isStopBPressed = false;
+    }
     StepperA.step((currentPosRaw[0]-distancePenToStepper[0])/progres);
     StepperB.step((currentPosRaw[1]-distancePenToStepper[1])/progres);
     currentPosRaw[0] = currentPosRaw[0] - (currentPosRaw[0]-distancePenToStepper[0])/progres;
@@ -161,14 +176,14 @@ void homeAll(){
   while(isStopAPressed==false){
     StepperA.step(-2);
   }
-  StepperA.step(100);
+  FuckGoBack('A');
   isStopAPressed = false;
 
   //click the B button
   while(isStopBPressed==false){
     StepperB.step(-2);
   }
-  StepperB.step(100);
+  FuckGoBack('B');
   isStopBPressed = false;
 
   //set coordinates
