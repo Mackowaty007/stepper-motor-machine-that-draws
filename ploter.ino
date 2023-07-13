@@ -6,6 +6,9 @@
 #define ENABLE_SERIAL       //enables serial communication with a PC
 //#define ENABLE_DEBUG        //prints out position over serial
 
+#define STEPPER_SPEED_NORMAL 40
+#define STEPPER_SPEED_RAPID 100
+
 Servo myservo;
 
 const int stepsPerRevolution = 200;
@@ -45,8 +48,8 @@ float Yjoystick = 0.0;
 String string_line;
 String string_parameter;
 //data for serial
-int posXdata = maxWidth / 2;  //mm
-int posYdata = maxHeight;     //mm
+float posXdata = maxWidth / 2;  //mm
+float posYdata = maxHeight;     //mm
 int posZdata = 0;
 String mode = "NORMAL";
 #endif
@@ -83,7 +86,6 @@ void moveRaw(int posA, int posB){
   else{
     numOfSteps = abs(posB);
   }
-  Serial.println(numOfSteps);
 
   //var progres is the number of steps until completion
   for(int progres=numOfSteps;progres>0;progres--){
@@ -104,11 +106,9 @@ void move(float X, float Y) {
 
   //check if one of the lines is too short to reach the point
   if (sqrt(pow(X, 2) + pow(Y, 2)) > stringLength){
-    Serial.println(sqrt(pow(X, 2) + pow(Y, 2)));
     return;
   }
   if (sqrt(pow(maxWidth - X, 2) + pow(Y, 2)) > stringLength){
-    Serial.println(sqrt(pow(maxWidth - X, 2) + pow(Y, 2)));
     return;
   }
 
@@ -133,10 +133,8 @@ void move(float X, float Y) {
   /*
   //calculate if the position is out of reach
   if (currentPosRaw[0] + howMuchToMove[0] > mmToSteps(stringLength)){
-    //Serial.println("outOfReachA");
   }
   if (currentPosRaw[1] + howMuchToMove[1] > mmToSteps(stringLength)){
-    //Serial.println("outOfReachA");
   }*/
 
   int numOfSteps = 100;
@@ -233,8 +231,8 @@ void setup() {
   Serial.begin(9600);
 
   // Set the motor speed (RPMs):
-  StepperA.setSpeed(100);
-  StepperB.setSpeed(100);
+  StepperA.setSpeed(STEPPER_SPEED_RAPID);
+  StepperB.setSpeed(STEPPER_SPEED_RAPID);
 
   attachInterrupt(digitalPinToInterrupt(3), stopA, RISING);
   attachInterrupt(digitalPinToInterrupt(2), stopB, RISING);
@@ -263,14 +261,6 @@ void loop() {
   if (digitalRead(joystickButton) == LOW) myservo.write(servoMaxAngle);
   else { myservo.write(servoMinAngle); }
 
-  // print out the joystick values:
-  /*
-  Serial.print  ("X: ");
-  Serial.print  (Xjoystick);
-  Serial.print  (" Y: ");
-  Serial.println(Yjoystick);
-  */
-
   //move the pen using the joystick
   move(currentPos[0] + Xjoystick * 2.0, currentPos[1] + Yjoystick * 2.0);
   #endif
@@ -295,30 +285,52 @@ void loop() {
   #endif
 
   #ifdef ENABLE_SERIAL
+  bool badSerialInput = false;
 
   //serial communication with a PC
   if(Serial.available() > 0) {
-    //mode can be RAW, NORMAL or HOME
-    //mode = (Serial.readStringUntil('\n'));
+    //mode can be NORMAL, RAPID or HOME
+    mode = (Serial.readStringUntil('\n'));
+
+    if (mode == "NORMAL"){
+      StepperA.setSpeed(STEPPER_SPEED_NORMAL);
+      StepperB.setSpeed(STEPPER_SPEED_NORMAL);
+    }
+    else if (mode == "RAPID"){
+      StepperA.setSpeed(STEPPER_SPEED_RAPID);
+      StepperB.setSpeed(STEPPER_SPEED_RAPID);
+    }
+    else if (mode == "HOME") {
+      StepperA.setSpeed(STEPPER_SPEED_RAPID);
+      StepperB.setSpeed(STEPPER_SPEED_RAPID);
+      homeAll();
+      mode = "NORMAL";
+    }
+    else{
+      //integrity check
+      badSerialInput = true;
+    }
+    
+
     posXdata = (Serial.readStringUntil('\n')).toFloat();
     posYdata = (Serial.readStringUntil('\n')).toFloat();
-    //posZdata = (Serial.readStringUntil('\n')).toInt();
-    Serial.print(posXdata);
-    Serial.print(" ");
-    Serial.println(posYdata);
+
+    posZdata = (Serial.readStringUntil('\n')).toInt();
+    //integrity check
+    if (posZdata != 1 && posZdata != 0){
+      badSerialInput = true;
+    }
+
+    if(badSerialInput == true){
+      Serial.print("ERROR");
+      badSerialInput = false;
+    }
+    else Serial.println("OK");
   }
+  //move the servo
+  if (posZdata == 0) myservo.write(servoMaxAngle);
+  else if (posZdata == 1) { myservo.write(servoMinAngle); }
+  //move the head
   move(posXdata,posYdata);
-  /*
-  if (mode=="NORMAL"){
-    move(posXdata,posYdata);
-    //Serial.println("OK");
-  }
-  else if (mode=="RAPID"){
-    moveRaw(posXdata,posYdata);
-    //Serial.println("OK");
-  }
-  else if (mode=="HOME"){
-    homeAll();
-  }*/
   #endif
 }
