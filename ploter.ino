@@ -17,9 +17,9 @@ const int servoMaxAngle = 160;
 
 //what are the machine dimensions?
 //lenght of the string
-const float stringLength = 630;  //mm
+const float stringLength = 589;  //mm
 //how wide the machine is (the distance between 2 stepper motors)
-const float maxWidth = 740;  //mm
+const float maxWidth = 736;  //mm
 //how low can the rope go
 //const float maxHeight = 480;//mm
 const float maxHeight = sqrt(pow(stringLength, 2) - pow(maxWidth / 2, 2));
@@ -54,6 +54,10 @@ int posZdata = 0;
 String mode = "NORMAL";
 #endif
 
+float lerp(float a,float b,float t){
+    return a + t * (b - a);
+}
+
 //200 steps ~ 31mm
 //1 step = 0.155mm
 //1 mm = 6.45161290323 steps
@@ -67,7 +71,7 @@ int mmToSteps(float mm) {
 
 //if the button is detected as pressed do this
 void FuckGoBack(char stepperID) {
-  if (stepperID == 'A') StepperA.step(100);
+  if (stepperID == 'A') StepperA.step(100+264);//the 264 is for callibration reasons (so that the strings are both equal)
   if (stepperID == 'B') StepperB.step(100);
 }
 //position of the pencil
@@ -241,9 +245,6 @@ void setup() {
   #endif
 
   myservo.attach(servo_pin);
-
-  //calibrate 
-  homeAll();
 }
 
 void loop() {
@@ -263,9 +264,6 @@ void loop() {
 
   //move the pen using the joystick
   move(currentPos[0] + Xjoystick * 2.0, currentPos[1] + Yjoystick * 2.0);
-  #endif
-  #ifndef ENABLE_JOYSTICK
-  myservo.write(servoMaxAngle);
   #endif
 
   #ifdef ENABLE_DEBUG
