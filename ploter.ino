@@ -10,20 +10,19 @@
 #define STEPPER_SPEED_RAPID 100
 
 Servo myservo;
+const int servoMinAngle = 40;
+const int servoMaxAngle = 90;
+bool lastServoAngleMax = true;//this variable is used to make the servo move gradualy (when it changes you know to change from min to max or vice versa)
 
 const int stepsPerRevolution = 200;
-const int servoMinAngle = 120;
-const int servoMaxAngle = 160;
 
 //what are the machine dimensions?
 //lenght of the string
-const float stringLength = 589;  //mm
+const float stringLength = 600;  //mm
 //how wide the machine is (the distance between 2 stepper motors)
 const float maxWidth = 736;  //mm
 //how low can the rope go
-//const float maxHeight = 480;//mm
 const float maxHeight = sqrt(pow(stringLength, 2) - pow(maxWidth / 2, 2));
-
 
 volatile bool isStopAPressed = false;
 volatile bool isStopBPressed = false;
@@ -54,6 +53,7 @@ int posZdata = 0;
 String mode = "NORMAL";
 #endif
 
+//TODO: implement this into move()
 float lerp(float a,float b,float t){
     return a + t * (b - a);
 }
@@ -71,34 +71,13 @@ int mmToSteps(float mm) {
 
 //if the button is detected as pressed do this
 void FuckGoBack(char stepperID) {
-  if (stepperID == 'A') StepperA.step(100+264);//the 264 is for callibration reasons (so that the strings are both equal)
-  if (stepperID == 'B') StepperB.step(100);
+  if (stepperID == 'A') StepperA.step(30+264);//the 264 is for callibration reasons (so that the strings are both equal)
+  if (stepperID == 'B') StepperB.step(30);
 }
-//position of the pencil
+//how much the strings are unwind
 int currentPosRaw[2] = { mmToSteps(stringLength), mmToSteps(stringLength) };  //steps
 //uppper left corner is [0,0]
 float currentPos[2] = { maxWidth / 2, maxHeight };  //mm
-/*
-//move A and B mottors to a pos
-void moveRaw(int posA, int posB){
-  int numOfSteps = 100;
-
-  //set the number of steps based on which distance is smaller
-  if(abs(posA) < abs(posB)){
-    numOfSteps = abs(posA);
-  }
-  else{
-    numOfSteps = abs(posB);
-  }
-
-  //var progres is the number of steps until completion
-  for(int progres=numOfSteps;progres>0;progres--){
-    StepperA.step((currentPosRaw[0]-posA)/progres);
-    StepperB.step((currentPosRaw[1]-posB)/progres);
-    currentPosRaw[0] = currentPosRaw[0] - (currentPosRaw[0]-posA)/progres;
-    currentPosRaw[1] = currentPosRaw[1] - (currentPosRaw[1]-posB)/progres;
-  }
-}*/
 
 //moves the pen to specified location (in mm)
 void move(float X, float Y) {
@@ -151,6 +130,7 @@ void move(float X, float Y) {
   }
 
   //var progres is the number of steps until completion
+  //*
   for (int progres = numOfSteps; progres > 0; progres--) {
     //check if the stop button has been pressed
     if (isStopAPressed == true) {
@@ -165,41 +145,24 @@ void move(float X, float Y) {
     StepperB.step((currentPosRaw[1] - distancePenToStepper[1]) / progres);
     currentPosRaw[0] = currentPosRaw[0] - (currentPosRaw[0] - distancePenToStepper[0]) / progres;
     currentPosRaw[1] = currentPosRaw[1] - (currentPosRaw[1] - distancePenToStepper[1]) / progres;
-  }
+  }//*/
+  /*
+  for (int progres = numOfSteps; progres > 0; progres--) {
+    //check if the stop button has been pressed
+    if (isStopAPressed == true) {
+      FuckGoBack('A');
+      isStopAPressed = false;
+    }
+    if (isStopBPressed == true) {
+      FuckGoBack('B');
+      isStopBPressed = false;
+    }
+    StepperA.step((currentPosRaw[0] - distancePenToStepper[0]) / progres);
+    StepperB.step((currentPosRaw[1] - distancePenToStepper[1]) / progres);
+    currentPosRaw[0] = currentPosRaw[0] - (currentPosRaw[0] - distancePenToStepper[0]) / progres;
+    currentPosRaw[1] = currentPosRaw[1] - (currentPosRaw[1] - distancePenToStepper[1]) / progres;
+  }*/
 }
-/*
-//moves one stepper mottor then the other
-void moveOneAtATime(int X, int Y){
-  //check if out of bounds
-  if (X < 0) X = 0;
-  if (X > maxWidth) X = maxWidth;
-  if (Y < 0) Y = 0;
-  if (Y > maxHeight) Y = maxHeight;
-
-  //set current coordinates
-  currentPos[0] = X;
-  currentPos[1] = Y;
-
-  //convert from milimiters to the number of steps
-  int posX = mmToSteps(X);
-  int posY = mmToSteps(Y);
-
-  int distancePenToStepper[2] = {//in steps
-    sqrt(pow(posY,2)+pow(posX,2)),
-    sqrt(pow(mmToSteps(maxWidth) - posY,2)+pow(posX,2))
-  };
-
-  //calculate how much to move
-  int howMuchToMove[2] = {//in steps
-    currentPosRaw[0] - distancePenToStepper[0],
-    currentPosRaw[1] - distancePenToStepper[1]
-  };
-
-  StepperA.step(howMuchToMove[0]);
-  StepperB.step(howMuchToMove[1]);
-  currentPosRaw[0] = currentPosRaw[0] - howMuchToMove[0];
-  currentPosRaw[1] = currentPosRaw[1] - howMuchToMove[1];
-}*/
 
 void homeAll() {
   //click the A button
@@ -309,10 +272,8 @@ void loop() {
       badSerialInput = true;
     }
     
-
     posXdata = (Serial.readStringUntil('\n')).toFloat();
     posYdata = (Serial.readStringUntil('\n')).toFloat();
-
     posZdata = (Serial.readStringUntil('\n')).toInt();
     //integrity check
     if (posZdata != 1 && posZdata != 0){
@@ -326,8 +287,28 @@ void loop() {
     else Serial.println("OK");
   }
   //move the servo
-  if (posZdata == 0) myservo.write(servoMaxAngle);
-  else if (posZdata == 1) { myservo.write(servoMinAngle); }
+  if (posZdata == 1 && lastServoAngleMax == false){
+    //this loop makes the servo move gradualy
+    //myservo.write(servoMaxAngle);
+    
+    for (int servoPos = servoMinAngle; servoPos <= servoMaxAngle; servoPos += 1) {
+      // in steps of 1 degree
+      myservo.write(servoPos);
+      delay(10);
+    }
+    lastServoAngleMax = true;
+  }
+  else if (posZdata == 0 && lastServoAngleMax == true){ 
+    //this loop makes the servo move gradualy
+    myservo.write(servoMinAngle);
+    //*
+    for (int servoPos = servoMaxAngle; servoPos >= servoMinAngle; servoPos -= 1) {
+      // in steps of 1 degree
+      myservo.write(servoPos);
+      delay(10);
+    }//*/
+    lastServoAngleMax = false;
+  }
   //move the head
   move(posXdata,posYdata);
   #endif
